@@ -2,7 +2,7 @@ import json
 import time
 from dronekit import connect, VehicleMode, LocationGlobalRelative
 
-vehicle = connect('port', wait_ready=True)
+vehicle = connect('tcp:127.0.0.1:5762', wait_ready=True)
 
 def arm_and_takeoff(altitude):
     print("Arming motors")
@@ -38,9 +38,8 @@ arm_and_takeoff(20)
 
 waypoints = [
     (12.9719, 80.0429, 10),
-    (12.9719, 80.0429, 10),
-    (12.9719, 80.0429, 10)  
-]                                   ###VALUES NOT YET CHANGED!!!!###
+    (12.9715612, 80.0432700, 10)
+]
 
 collect = {}
 count = 1
@@ -65,5 +64,6 @@ for lat, lon, alt in waypoints:
 
 writeup(collect)
 
+print("All waypoints reached..now tym to RTL")
 vehicle.mode = VehicleMode("RTL")
 vehicle.close()

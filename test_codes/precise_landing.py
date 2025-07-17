@@ -1,67 +1,3 @@
-<<<<<<< HEAD
-from dronekit import connect
-import cv2 as cv
-import math
-import time
-
-vehicle = connect('<COM PORT>', baud='< baudrate as int>', wait_ready=True)
-
-if vehicle is not None:
-    print("Kandupidiciten!!")
-if vehicle.is_armable == True:
-    print("Vanakam da maplaaa!! Connect agiten!")
-
-#model = 'yolov8n'
-
-rtsp = '<url>'
-capture = cv.VideoCapture(rtsp)  
-
-###     Sensor deafult values     ###
-
-sensor_width = 7.6 #mm
-focal_length = 4.4 #mm
-
-
-###     Used to continously go thorugh the input video frame        ###
-while True:
-    ret, frame =capture.read()
-    tym = 0
-    if not ret:
-        print(f"no frame got grabbed!{tym} secs")
-        time.sleep(1)
-    
-    image_height, image_width, channel = frame.shape
-    alt = vehicle.location.global_relative_frame.alt
-    gsd = (sensor_width*alt) / (focal_length*image_width)
-
-    #To annotate on the Screen!
-    cv.putText(frame,                      
-            f"Height: {alt:.2f} m",     
-            (50, 50),                   
-            cv.FONT_HERSHEY_DUPLEX,    
-            1.8,                        
-            (0,0, 255),            
-            2)
-                              
-    cv.putText(frame,                      
-            f"GSD: {gsd:.2f} m",     
-            (50, 45),                   
-            cv.FONT_HERSHEY_DUPLEX,    
-            1.8,                        
-            (0,0, 255),            
-            2)
-
-
-    cv.imshow('Video',frame)
-    
-    #used to break the code and kill the processs!
-    if cv.waitKey(20) & 0xFF==ord('x'): 
-        break
-
-
-capture.release() 
-cv.destroyAllWindows()
-=======
 from dronekit import connect
 import cv2 as cv
 #import math
@@ -190,25 +126,25 @@ vehicle.simple_goto(a_location,groundspeed=7.5)
 '''
 -----------------------WORK FLOW----------------------
 
-CONNECT TO DRONE
+CONNECT TO DRONE  !
     |
-ARM THE DRONE
+ARM THE DRONE     !
     |
-REACH CERTAIN HEIGHT
+REACH CERTAIN HEIGHT    !
     |
-CV FOR FRAME INPUT
+CV FOR FRAME INPUT  !
     |
-GSD CALCULATION
+GSD CALCULATION !
     |
-IDENTIFY THE OBJECT WITHIN THE FRAME
+IDENTIFY THE OBJECT WITHIN THE FRAME    !
     |
-FIND THE CENTER POINT OF THE OBJECT IN THAT FRAME
+FIND THE CENTER POINT OF THE OBJECT IN THAT FRAME   !
     |
-FIND THE CURRENT CENTER
+FIND THE CURRENT CENTER !
     |
-IDENTIFY THE CENTER
+IDENTIFY THE CENTER !
     |
-GO TO THE CENTER OF OBJECT
+GO TO THE CENTER OF O  BJECT
     |
 START TO DECEND <-----|
     |                 |
@@ -221,4 +157,3 @@ LAND & DISARM
 ----------------------------------------------------
 
 '''
->>>>>>> a6783f8 (Initial commit)

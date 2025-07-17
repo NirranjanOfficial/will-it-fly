@@ -1,5 +1,5 @@
 from dronekit import connect,VehicleMode,LocationGlobalRelative
-import dronekit_sitl
+#import dronekit_sitl
 import time
 import argparse
 
