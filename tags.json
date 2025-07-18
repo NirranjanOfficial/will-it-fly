@@ -1,0 +1,16 @@
+{
+    "Waypoint 1": {
+        "Altitude": 12.04,
+        "Latitude": 12.971842,
+        "Longitude": 80.043139,
+        "Speed": 8.997329711914062,
+        "Img_org": "Waypoint 1.png"
+    },
+    "Waypoint 2": {
+        "Altitude": 10.41,
+        "Latitude": 12.971688,
+        "Longitude": 80.043155,
+        "Speed": 5.06441068649292,
+        "Img_org": "Waypoint 2.png"
+    }
+}

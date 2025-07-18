@@ -1,8 +1,12 @@
 import json
 import time
+import cv2 as cv
 from dronekit import connect, VehicleMode, LocationGlobalRelative
 
 vehicle = connect('tcp:127.0.0.1:5762', wait_ready=True)
+rtsp = 'rtsp://192.168.144.25:8554/main.264'
+
+#######################################################################
 
 def arm_and_takeoff(altitude):
     print("Arming motors")
@@ -34,7 +38,15 @@ def writeup(stats):
 #######################################################################
 
 
-arm_and_takeoff(20)
+arm_and_takeoff(15)
+
+capture = cv.VideoCapture(rtsp)  #waits until the req alt is met!
+#capture = cv.VideoCapture(0)  use only for trail
+
+if not capture.isOpened():
+    print("Camera i'snt working!")
+    exit()
+
 
 waypoints = [
     (12.9719, 80.0429, 10),
@@ -45,11 +57,23 @@ collect = {}
 count = 1
 
 for lat, lon, alt in waypoints:
+
     print(f"Going to WP{count}!")
     vehicle.airspeed = 5
     target_location = LocationGlobalRelative(lat, lon, alt)
     vehicle.simple_goto(target_location)
     time.sleep(10)
+
+    ret, frame = capture.read()
+
+
+    if ret:
+        img_org = f"Waypoint {count}.png"
+        cv.imwrite(img_org, frame)
+        print("Frame captured!")
+
+    else:
+        img_org = "Null"
 
     current_location = vehicle.location.global_frame
     current_alt = vehicle.location.global_relative_frame.alt
@@ -58,9 +82,15 @@ for lat, lon, alt in waypoints:
         "Altitude": round(current_alt, 2),
         "Latitude": round(current_location.lat, 6),
         "Longitude": round(current_location.lon, 6),
-        "Speed": vehicle.airspeed
-    }
+        "Speed": vehicle.airspeed,
+        "Img_org":img_org
+        }
+    
     count += 1
+
+
+capture.release()
+cv.destroyAllWindows()
 
 writeup(collect)
 
