@@ -1,0 +1,20 @@
+#### python==3.8.16
+
+dronekit==2.9.2
+dronekit-sitl==3.3.0
+MAVProxy==1.8.46
+pymavlink==2.4.39
+
+ultralytics==8.0.227
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2  
+
+opencv-python==4.9.0.80
+numpy==1.24.4
+pandas==1.5.3
+seaborn==0.12.2
+matplotlib==3.7.3
+
+scikit-learn==1.2.2
+
