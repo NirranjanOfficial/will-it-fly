@@ -17,4 +17,3 @@ seaborn==0.12.2
 matplotlib==3.7.3
 
 scikit-learn==1.2.2
-
