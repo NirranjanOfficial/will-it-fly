@@ -26,13 +26,13 @@ contours , heirarchy = cv.findContours(mask, cv.RETR_TREE , cv.CHAIN_APPROX_NONE
 for cnts in contours:
     approx = cv.approxPolyDP(cnts , 0.01*cv.arcLength(cnts , False) , True)  #true for To close the arc , countour closed function 
     cv.drawContours(grey, [approx], 0 , (0) , 2)
-    #cv.drawContours(thresh, [cnts], 0 , (0) , 2)
-    #print(len(approx))
+
     x = approx.ravel()[0] ; y = approx.ravel()[1]
     x = height_img//2 ; y = width_img//2
     xc, yc , w, h = cv.boundingRect(approx)
     cnt_area = cv.contourArea(cnts)
-    if cnt_area>500:
+
+    if cnt_area > 500:
         if len(approx) == 3:
             cv.putText(final ,'Triangle', (x,y),font, fontScale=1 ,color=(0),thickness=font_thickness)
 
@@ -49,19 +49,17 @@ for cnts in contours:
         elif len(approx) == 6:
             cv.putText(final ,'Hexagon', (x,y),font, fontScale=1 ,color=(0),thickness=font_thickness)
 
-        # elif 10 <= len(approx) <= 15:
-        #     cv.putText(final ,'Polygon', (x,y),font, fontScale=1 ,color=(0),thickness=font_thickness)
         else:
             cv.putText(final ,'Circle', (x,y),font, fontScale=1 ,color=(0),thickness=font_thickness)
 
 
 print(f'Width:{w} ,Height:{h}, area:{cnt_area}')
+
 '''Show functions'''
 cv.imshow("grey", grey)
 cv.imshow("Threshold", thresh)
 cv.imshow("mask", mask)
 cv.imshow("final window", final)
-
 
 '''wait key'''
 cv.waitKey(0)
