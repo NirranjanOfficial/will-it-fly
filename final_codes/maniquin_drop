@@ -1,0 +1,190 @@
+# ----------------- maniquin.py -----------------
+from pymavlink import mavutil
+from ultralytics import YOLO
+import cv2
+import time
+import math
+
+# -------------------------------------------------------------
+# CONFIGURATION
+# -------------------------------------------------------------
+TARGET_ALT = 8.0
+SENSOR_WIDTH_MM = 7.6
+FOCAL_LENGTH_MM = 4.4
+
+# Servo configuration (for payload release)
+SERVO_CHANNEL = 10          # AUX2 = channel 10
+PWM_ON = 1900               # activate / release payload
+PWM_OFF = 1100              # reset position
+TRIGGER_DELAY = 3.0         # seconds between ON and OFF
+
+# -------------------------------------------------------------
+# Coordinate Conversion Helpers
+# -------------------------------------------------------------
+def get_target_location(current_location, offset_east_m, offset_north_m):
+    R = 6378137.0
+    dLat = offset_north_m / R
+    dLon = offset_east_m / (R * math.cos(math.pi * current_location[0] / 180.0))
+    newlat = current_location[0] + (dLat * 180 / math.pi)
+    newlon = current_location[1] + (dLon * 180 / math.pi)
+    return (newlat, newlon, current_location[2])
+
+
+def camera_to_uav(x_cam, y_cam):
+    return -y_cam, x_cam
+
+
+def uav_to_ne(x_uav, y_uav, yaw_rad):
+    c, s = math.cos(yaw_rad), math.sin(yaw_rad)
+    north = x_uav * c - y_uav * s
+    east = x_uav * s + y_uav * c
+    return north, east
+
+# -------------------------------------------------------------
+# MAVLink Helpers
+# -------------------------------------------------------------
+def recv_global_position_int(vehicle, timeout=1):
+    return vehicle.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=timeout)
+
+
+def get_current_location(vehicle):
+    msg = recv_global_position_int(vehicle, timeout=1)
+    if msg:
+        lat = msg.lat / 1e7
+        lon = msg.lon / 1e7
+        alt = msg.relative_alt / 1000.0
+        return lat, lon, alt
+    return None
+
+
+def get_current_altitude(vehicle):
+    cur = get_current_location(vehicle)
+    return cur[2] if cur else TARGET_ALT
+
+
+def get_heading(vehicle):
+    msg = vehicle.recv_match(type="VFR_HUD", blocking=True, timeout=0.5)
+    if msg and hasattr(msg, "heading"):
+        return float(msg.heading)
+    msg2 = recv_global_position_int(vehicle, timeout=0.5)
+    if msg2 and hasattr(msg2, "hdg"):
+        return float(msg2.hdg) / 100.0
+    return 0.0
+
+
+# -------------------------------------------------------------
+# Image → GPS Conversion
+# -------------------------------------------------------------
+def compute_target_location(object_centerx, object_centery, frame_width, frame_height, vehicle):
+    image_centerx = frame_width // 2
+    image_centery = frame_height // 2
+    altitude_m = get_current_altitude(vehicle)
+
+    GSD = (SENSOR_WIDTH_MM * altitude_m) / (FOCAL_LENGTH_MM * frame_width)
+    x_cam = (object_centerx - image_centerx) * GSD
+    y_cam = (object_centery - image_centery) * GSD
+
+    x_uav, y_uav = camera_to_uav(x_cam, y_cam)
+    yaw_rad = math.radians(get_heading(vehicle))
+    north_offset, east_offset = uav_to_ne(x_uav, y_uav, yaw_rad)
+
+    current_location = get_current_location(vehicle)
+    if current_location is None:
+        raise RuntimeError("No GPS available to compute target location.")
+
+    return get_target_location(current_location, east_offset, north_offset)
+
+# -------------------------------------------------------------
+# Servo Payload Trigger
+# -------------------------------------------------------------
+def trigger_servo(vehicle, channel, pwm_on_value, pwm_off_value, delay):
+    """Activate and reset servo via MAVLink command."""
+    # --- Trigger ON ---
+    vehicle.mav.command_long_send(
+        vehicle.target_system,
+        vehicle.target_component,
+        mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
+        0,
+        channel,
+        pwm_on_value,
+        0, 0, 0, 0, 0
+    )
+    print(f"✅ Payload servo {channel} activated (PWM {pwm_on_value})")
+    time.sleep(delay)
+
+    # --- Trigger OFF ---
+    vehicle.mav.command_long_send(
+        vehicle.target_system,
+        vehicle.target_component,
+        mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
+        0,
+        channel,
+        pwm_off_value,
+        0, 0, 0, 0, 0
+    )
+    print(f"✅ Servo {channel} reset (PWM {pwm_off_value})")
+
+# -------------------------------------------------------------
+# Maniquin Detection + Payload Drop
+# -------------------------------------------------------------
+def maniquin(vehicle, cap, pool_box, model,detection_time=3):
+    """Detects 'maniquin' before executing payload drop using servo."""
+    
+    print("🔍 Checking for 'maniquin' in live feed before payload drop...")
+
+    pool_x1, pool_y1, pool_x2, pool_y2 = map(int, pool_box)
+    pool_cx, pool_cy = (pool_x1 + pool_x2) // 2, (pool_y1 + pool_y2) // 2
+
+    found_maniquin = False
+    maniquin_box = None
+    start_time = time.time()
+
+    # Capture for given detection window
+    while time.time() - start_time < detection_time:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+
+        results = model(frame, conf=0.5)
+        annotated = frame.copy()
+
+        if results and results[0].boxes:
+            for box in results[0].boxes:
+                cls_id = int(box.cls[0])
+                label = model.names[cls_id]
+                bx1, by1, bx2, by2 = map(int, box.xyxy[0])
+
+                cv2.rectangle(annotated, (bx1, by1), (bx2, by2), (0, 255, 0), 2)
+                cv2.putText(annotated, label, (bx1, by1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                if label.lower() == "maniquin":
+                    found_maniquin = True
+                    maniquin_box = (bx1, by1, bx2, by2)
+                    break
+
+        cv2.imshow("Verification Feed", annotated)
+        cv2.waitKey(1)
+
+        if found_maniquin:
+            print("🎯 'maniquin' detected!")
+            break
+
+    # Decide drop location
+    if found_maniquin and maniquin_box:
+        mx1, my1, mx2, my2 = maniquin_box
+        drop_cx, drop_cy = (mx1 + mx2) // 2, (my1 + my2) // 2
+        print(f"📍 Dropping at 'maniquin' center: ({drop_cx}, {drop_cy})")
+    else:
+        drop_cx, drop_cy = pool_cx, pool_cy
+        print("⚠ No 'maniquin' found — dropping at pool center.")
+
+    # Convert to GPS
+    h, w = frame.shape[:2]
+    drop_lat, drop_lon, drop_alt = compute_target_location(drop_cx, drop_cy, w, h, vehicle)
+    print(f"🌍 Drop GPS target: {drop_lat:.7f}, {drop_lon:.7f}")
+
+    # -------- Trigger the servo drop --------
+    print("💧 Initiating servo payload drop...")
+    trigger_servo(vehicle, SERVO_CHANNEL, PWM_ON, PWM_OFF, TRIGGER_DELAY)
+    print("✅ Payload drop sequence complete.")
