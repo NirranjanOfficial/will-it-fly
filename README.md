@@ -20,3 +20,11 @@ To use the drone simulation tools:
 * On Ubuntu: Install QGroundControl (QGCS) and connect it to SITL.
 
 * On Windows: Use Mission Planner for SITL integration and monitoring.
+
+In order to work with the final-code, we will be needing ByteTracker for it!
+
+```bash
+git clone https://github.com/ifzhang/ByteTrack.git
+```
+
+Clone this repository and follow its Readme file!
